@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+from functions.call_function import call_function
+
 if len(sys.argv) < 2:
     print('Provide a prompt you idiot!')
     exit(1)
@@ -100,13 +102,14 @@ config = types.GenerateContentConfig(
 
 response = client.models.generate_content(model="gemini-2.0-flash-001", contents=messages, config=config)
 
-
 for call in response.function_calls:
-    print(f"Calling function: {call.name}({call.args})")
-print(response.text)
+    result = call_function(call)
+    call_response = result.parts[0].function_response.response
 
-if len(sys.argv) > 2:
-    if '--verbose' in sys.argv:
-        print(f"User prompt: {user_prompt}")
-        print(f"Prompt tokens: {response.usage_metadata.prompt_token_count}")
-        print(f"Response tokens: {response.usage_metadata.candidates_token_count}")
+    if call_response is None:
+        raise Exception('Error: No response')
+    elif len(sys.argv) > 2 and '--verbose' in sys.argv:
+        if '--verbose' in sys.argv:
+            print(f"-> {call_response}")
+
+print(response.text)
