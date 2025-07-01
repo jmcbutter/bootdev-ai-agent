@@ -100,16 +100,28 @@ config = types.GenerateContentConfig(
     system_instruction=system_prompt
 )
 
-response = client.models.generate_content(model="gemini-2.0-flash-001", contents=messages, config=config)
+iters = 0
+while True:
+    if iters >= 20:
+        break
+    iters += 1
 
-for call in response.function_calls:
-    result = call_function(call)
-    call_response = result.parts[0].function_response.response
+    response = client.models.generate_content(model="gemini-2.0-flash-001", contents=messages, config=config)
 
-    if call_response is None:
-        raise Exception('Error: No response')
-    elif len(sys.argv) > 2 and '--verbose' in sys.argv:
-        if '--verbose' in sys.argv:
-            print(f"-> {call_response}")
+    for candidate in response.candidates:
+        messages.append(candidate.content)
 
-print(response.text)
+    if response.function_calls is not None and len(response.function_calls) > 0:
+        for call in response.function_calls:
+            result = call_function(call)
+            call_response = result.parts[0].function_response.response
+            messages.append(result)
+
+            if call_response is None:
+                raise Exception('Error: No response')
+            elif len(sys.argv) > 2 and '--verbose' in sys.argv:
+                if '--verbose' in sys.argv:
+                    print(f"-> {call_response}")
+    else:
+        print(response.text)
+        break
